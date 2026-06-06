@@ -208,8 +208,9 @@ sleep 3
 runuser -u ricardo -- env XDG_RUNTIME_DIR=/run/user/1000 HOME=/home/ricardo DBUS_SYSTEM_BUS_ADDRESS=unix:path=/run/dbus/system_bus_socket /usr/bin/pipewire-pulse &
 
 # Forçar 100Mbps para evitar falha de auto-negociação (LED amarelo/verde piscando)
-ethtool -s end0 speed 100 duplex full autoneg off 2>/dev/null || true
-sleep 2
+/usr/sbin/ethtool -s end0 autoneg on 2>/dev/null || true
+sleep 5
+/usr/local/bin/nat-setup.sh 2>/dev/null || true
 
 # Reativar NAT após o link subir estável
 /usr/local/bin/nat-setup.sh 2>/dev/null || true
