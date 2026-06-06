@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<title>VovôAmp - Headless Audio Engine (OrangePi)</title>
+<style>
+  body { background: #000; color: #0f0; font-family: monospace; padding: 20px; }
+  #logBox { margin-top: 20px; white-space: pre-wrap; font-size: 14px; }
+</style>
+</head>
+<body>
+<h1>VovôAmp Headless Audio Engine</h1>
+<div id="status">Iniciando...</div>
+<div id="logBox"></div>
+
+<script>
+let ws;
+let ctx = null, stream = null, running = false, vuInterval = null;
+let analyserNode = null, gainNode = null, hpFilter = null, compressor = null, rnnoiseNode = null;
+let gateThresholdDB = -40;
+let isGateOn = false;
+let currentGain = 3.0;
+
+const logBox = document.getElementById('logBox');
+function log(msg) {
+  console.log(msg);
+  logBox.textContent += '› ' + msg + '\n';
+  // Keep log size manageable
+  if (logBox.textContent.length > 5000) {
+    logBox.textContent = logBox.textContent.substring(logBox.textContent.length - 2000);
+  }
+}
+
+function sendLog(msg, type='info') {
+  log(msg);
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: 'log', msg, msgType: type }));
+  }
+}
+
+function connectWS() {
+  const wsUrl = `ws://${window.location.host}/ws?type=pi`;
+  ws = new WebSocket(wsUrl);
+
+  ws.onopen = () => {
+    log('Conectado ao WebSocket Bridge.');
+    // Start áudio se não estiver rodando (autostart)
+    if (!running) {
+      startAudio();
+    }
+  };
+
+  ws.onmessage = (evt) => {
+    const data = JSON.parse(evt.data);
+    
+    if (data.type === 'state_sync' || data.type === 'config') {
+      applyConfig(data.state);
+    }
+    else if (data.type === 'action') {
+      if (data.action === 'start' && !running) startAudio();
+      if (data.action === 'stop' && running) stopAudio();
+      if (data.action === 'restart') {
+        if (running) stopAudio();
+        setTimeout(startAudio, 500); // Aguarda o PipeWire assentar
+      }
+    }
+  };
+
+  ws.onclose = () => {
+    log('WebSocket desconectado. Tentando reconectar...');
+    setTimeout(connectWS, 2000);
+  };
+}
+
+function applyConfig(state) {
+  if (!ctx) return;
+  
+  if (state.gain !== undefined) {
+    currentGain = state.gain / 10;
+    if (!isGateOn && gainNode) {
+      gainNode.gain.setTargetAtTime(currentGain, ctx.currentTime, 0.015);
+    }
+  }
+  if (state.hpHz !== undefined && state.hpOn !== undefined) {
+    if (hpFilter) {
+      hpFilter.frequency.setTargetAtTime(state.hpOn ? state.hpHz : 20, ctx.currentTime, 0.01);
+    }
+  }
+  if (state.compOn !== undefined) {
+    if (compressor) {
+      compressor.threshold.setTargetAtTime(state.compOn ? -24 : 0, ctx.currentTime, 0.01);
+    }
+  }
+  if (state.gateOn !== undefined) {
+    isGateOn = state.gateOn;
+    if (!isGateOn && gainNode) {
+       gainNode.gain.setTargetAtTime(currentGain, ctx.currentTime, 0.015);
+    }
+  }
+  if (state.gateThresholdDB !== undefined) {
+    gateThresholdDB = state.gateThresholdDB;
+  }
+}
+
+async function startAudio() {
+  sendLog('Iniciando áudio e requisitando microfone...', 'info');
+  try {
+    // Requisita mic sem processamento do Chrome (para usar nosso RNNoise + HP)
+    stream = await navigator.mediaDevices.getUserMedia({ 
+      audio: { 
+        echoCancellation: false, 
+        noiseSuppression: false, 
+        autoGainControl: false,
+        sampleRate: 48000
+      } 
+    });
+    
+    ctx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 48000, latencyHint: 'interactive' });
+    await ctx.resume();
+
+    const source = ctx.createMediaStreamSource(stream);
+    
+    // Analyser na SOURCE para ler volume real antes do gate
+    analyserNode = ctx.createAnalyser();
+    analyserNode.fftSize = 512;
+    source.connect(analyserNode);
+
+    // Carrega o RNNoise Worklet
+    sendLog('Carregando RNNoise Worklet...', 'info');
+    try {
+      await ctx.audioWorklet.addModule('rnnoise-worklet.js');
+      rnnoiseNode = new AudioWorkletNode(ctx, 'rnnoise-processor');
+      sendLog('RNNoise Worklet carregado.', 'ok');
+    } catch (err) {
+      sendLog('Aviso: Falha ao carregar RNNoise Worklet (' + err.message + '). Usando fallback sem RNNoise.', 'err');
+      rnnoiseNode = ctx.createGain(); // Fallback pass-through se falhar
+    }
+
+    hpFilter = ctx.createBiquadFilter(); 
+    hpFilter.type = 'highpass';
+    
+    compressor = ctx.createDynamicsCompressor();
+    
+    gainNode = ctx.createGain(); 
+    gainNode.gain.value = currentGain;
+
+    // Chain: Source -> RNNoise -> HP -> Compressor -> Gain -> Destination
+    source.connect(rnnoiseNode);
+    rnnoiseNode.connect(hpFilter);
+    hpFilter.connect(compressor);
+    compressor.connect(gainNode);
+    gainNode.connect(ctx.destination);
+
+    running = true;
+    
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'status', running: true, msg: 'Microfone Ativo (OrangePi)', msgType: 'ok' }));
+    }
+    
+    sendLog('Microfone ativo ✓', 'ok');
+    
+    // Loop de VU Meter rodando via setInterval para funcionar em headless (requestAnimationFrame pausa em tabs ocultas)
+    if (vuInterval) clearInterval(vuInterval);
+    vuInterval = setInterval(processAudioTick, 50);
+
+  } catch(e) {
+    sendLog('Erro ao iniciar áudio: ' + e.message, 'err');
+  }
+}
+
+function stopAudio() {
+  running = false;
+  if (vuInterval) { clearInterval(vuInterval); vuInterval = null; }
+  if (stream) stream.getTracks().forEach(t => t.stop());
+  if (ctx) ctx.close();
+  ctx = null; stream = null;
+  
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: 'status', running: false, msg: 'Áudio Parado.', msgType: 'info' }));
+  }
+  sendLog('Áudio parado.', 'info');
+}
+
+function processAudioTick() {
+  if (!running || !analyserNode || !gainNode) return;
+  
+  const timeData = new Float32Array(analyserNode.fftSize);
+  analyserNode.getFloatTimeDomainData(timeData);
+  let rms = 0;
+  for (let i = 0; i < timeData.length; i++) { 
+    rms += timeData[i] * timeData[i];
+  }
+  rms = Math.sqrt(rms / timeData.length);
+
+  // Lógica do Gate
+  if (isGateOn) {
+    const db = rms > 0 ? 20 * Math.log10(rms) : -100;
+    const targetGain = (db < gateThresholdDB) ? 0 : currentGain;
+    gainNode.gain.setTargetAtTime(targetGain, ctx.currentTime, 0.1);
+  } else {
+    // garante que se desativou o gate, o ganho volta pro normal
+    // gainNode.gain.setTargetAtTime(currentGain, ctx.currentTime, 0.05);
+  }
+  
+  // Envia VU para a UI
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: 'vu', rms: rms }));
+  }
+}
+
+window.addEventListener('load', connectWS);
+</script>
+</body>
+</html>

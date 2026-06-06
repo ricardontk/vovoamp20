@@ -1,0 +1,1212 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-title" content="VovôAmp"/>
+<title>VovôAmp</title>
+<link rel="stylesheet" href="/static/lib/font-awesome.css">
+<style>
+  @font-face {
+    font-family: 'Nunito';
+    src: local('Nunito'), local('sans-serif');
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:       #0d1117;
+  --surface:  #161b22;
+  --surface2: #21262d;
+  --border:   #30363d;
+  --accent:   #00e676;
+  --accent2:  #00c853;
+  --warn:     #ffca28;
+  --danger:   #ff5252;
+  --blue:     #40c4ff;
+  --purple:   #b388ff;
+  --text:     #f0f6fc;
+  --text2:    #8b949e;
+  --muted:    #484f58;
+  --radius:   20px;
+  --radius-lg:28px;
+}
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Nunito', sans-serif;
+  overflow-x: hidden;
+}
+.app { max-width: 480px; margin: 0 auto; padding-bottom: 96px; }
+
+/* ── HEADER ── */
+header {
+  text-align: center;
+  padding: 20px 16px 0;
+  position: relative;
+}
+header h1 {
+  font-size: clamp(2rem, 8vw, 2.6rem);
+  font-weight: 900;
+  color: var(--accent);
+  text-shadow: 0 0 40px rgba(0,230,118,.3);
+  letter-spacing: -1px;
+}
+header p { font-size: .75rem; color: var(--muted); margin-top: 2px; letter-spacing: .12em; text-transform: uppercase; }
+
+/* ── CONN BAR ── */
+.conn-bar {
+  margin: 10px 16px 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.conn-dot { width: 11px; height: 11px; border-radius: 50%; background: var(--muted); flex-shrink: 0; transition: all .3s; }
+.conn-dot.ok  { background: var(--accent); box-shadow: 0 0 8px rgba(0,230,118,.5); animation: cblink 2.5s ease-in-out infinite; }
+.conn-dot.err { background: var(--danger); }
+@keyframes cblink { 0%,100%{opacity:1}50%{opacity:.5} }
+#connText { font-size: .88rem; font-weight: 700; }
+
+/* ── PAGES ── */
+.page { display: none; padding: 14px 16px; flex-direction: column; gap: 14px; }
+.page.active { display: flex; }
+
+/* ── CARDS ── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px 22px;
+  position: relative;
+  overflow: hidden;
+}
+.card::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 20%; right: 20%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(0,230,118,.25), transparent);
+}
+.card-title {
+  font-size: .72rem;
+  font-weight: 900;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 16px;
+}
+
+/* ── VU METER ── */
+.vu-wrap { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.vu-bars { display: flex; gap: 4px; align-items: flex-end; height: 56px; }
+.vu-bar  { width: 13px; border-radius: 4px 4px 0 0; background: var(--border); height: 10px; transition: height .06s ease; }
+.status-center { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+.status-icon { font-size: 3rem; line-height: 1; transition: all .3s; }
+#statusText  { font-size: 1.05rem; font-weight: 800; color: var(--text2); }
+#deviceInfo  { font-size: .85rem; font-weight: 700; color: var(--accent); min-height: 20px; text-align: center; }
+
+/* ── BIG BUTTONS ── */
+.btn-giant {
+  width: 100%;
+  padding: 22px 20px;
+  border: none;
+  border-radius: var(--radius-lg);
+  font-family: 'Nunito', sans-serif;
+  font-size: 1.25rem;
+  font-weight: 900;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  transition: transform .15s, box-shadow .2s, filter .15s;
+  -webkit-tap-highlight-color: transparent;
+  letter-spacing: .02em;
+}
+.btn-giant:active { transform: scale(.97); filter: brightness(.9); }
+.btn-giant.go {
+  background: linear-gradient(135deg, #00e676, #00c853);
+  color: #002106;
+  box-shadow: 0 6px 28px rgba(0,230,118,.3);
+}
+.btn-giant.stop {
+  background: linear-gradient(135deg, #ff5252, #c62828);
+  color: #fff;
+  box-shadow: 0 6px 28px rgba(255,82,82,.3);
+}
+.btn-giant .gi { font-size: 1.5rem; }
+
+/* ── REGULAR BUTTONS ── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 13px 18px;
+  border-radius: 14px;
+  border: 2px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  font-family: 'Nunito', sans-serif;
+  font-size: .95rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all .2s;
+  -webkit-tap-highlight-color: transparent;
+  line-height: 1;
+}
+.btn:active { transform: scale(.96); }
+.btn.primary { background: rgba(0,230,118,.1); border-color: var(--accent); color: var(--accent); }
+.btn.danger  { background: rgba(255,82,82,.1); border-color: var(--danger); color: var(--danger); }
+.btn.blue    { background: rgba(64,196,255,.1); border-color: var(--blue); color: var(--blue); }
+.btn.purple  { background: rgba(179,136,255,.1); border-color: var(--purple); color: var(--purple); }
+.btn.full    { width: 100%; }
+.btn:disabled { opacity: .35; cursor: not-allowed; }
+.bicon { font-size: 1.1rem; }
+
+/* ── SLIDERS ── */
+.sl-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; }
+.sl-label  { font-size: .9rem; font-weight: 800; color: var(--text2); }
+.sl-val    { font-size: 1.7rem; font-weight: 900; color: var(--accent); line-height: 1; }
+.sl-val small { font-size: .85rem; color: var(--muted); font-weight: 700; }
+input[type=range] {
+  -webkit-appearance: none;
+  width: 100%; height: 8px;
+  border-radius: 4px;
+  background: var(--border);
+  outline: none;
+  cursor: pointer;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 4px solid var(--bg);
+  box-shadow: 0 0 12px rgba(0,230,118,.5);
+}
+.range-ends { display: flex; justify-content: space-between; font-size: .75rem; color: var(--muted); font-weight: 700; margin-top: 8px; }
+
+/* ── BIG TOGGLES ── */
+.tog-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 15px 0;
+  border-bottom: 1px solid var(--border);
+  gap: 16px;
+}
+.tog-row:last-child { border-bottom: none; padding-bottom: 0; }
+.tog-row:first-child { padding-top: 0; }
+.tog-info { flex: 1; }
+.tog-name { font-size: 1rem; font-weight: 800; }
+.tog-desc { font-size: .78rem; color: var(--text2); margin-top: 3px; font-weight: 600; line-height: 1.3; }
+.sw { position: relative; width: 64px; height: 34px; flex-shrink: 0; }
+.sw input { opacity: 0; width: 0; height: 0; }
+.sw-track {
+  position: absolute; inset: 0;
+  background: var(--border);
+  border-radius: 34px;
+  cursor: pointer;
+  transition: all .3s;
+  border: 2px solid transparent;
+}
+.sw-track::before {
+  content: '';
+  position: absolute;
+  width: 26px; height: 26px;
+  left: 2px; top: 2px;
+  border-radius: 50%;
+  background: var(--muted);
+  transition: transform .3s, background .3s;
+}
+.sw input:checked + .sw-track { background: rgba(0,230,118,.2); border-color: var(--accent); }
+.sw input:checked + .sw-track::before { transform: translateX(30px); background: var(--accent); box-shadow: 0 0 8px rgba(0,230,118,.5); }
+
+/* ── BLUETOOTH ITEMS ── */
+.bt-list { display: flex; flex-direction: column; gap: 10px; }
+.bt-item {
+  background: var(--surface2);
+  border: 2px solid var(--border);
+  border-radius: 18px;
+  padding: 15px 17px;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  transition: border-color .3s, background .3s;
+}
+.bt-item.connected { border-color: rgba(0,230,118,.5); background: rgba(0,230,118,.04); }
+.bt-icon { font-size: 1.9rem; flex-shrink: 0; }
+.bt-info { flex: 1; min-width: 0; }
+.bt-name { font-size: 1rem; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bt-mac  { font-size: .68rem; color: var(--muted); margin-top: 2px; font-weight: 600; }
+.bt-badge { font-size: .68rem; font-weight: 800; padding: 3px 10px; border-radius: 20px; margin-top: 5px; display: inline-block; letter-spacing: .04em; }
+.bt-badge.conn   { background: rgba(0,230,118,.18); color: var(--accent); }
+.bt-badge.paired { background: rgba(64,196,255,.14); color: var(--blue); }
+.bt-badge.found  { background: rgba(255,202,40,.12); color: var(--warn); }
+.bt-actions { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
+.bt-actions .btn { padding: 10px 13px; font-size: .85rem; border-radius: 11px; }
+
+/* ── PROFILE PILLS ── */
+.profile-row { display: flex; gap: 6px; margin-top: 8px; }
+.prof-btn {
+  flex: 1;
+  padding: 8px 6px;
+  border-radius: 10px;
+  border: 2px solid var(--border);
+  background: transparent;
+  color: var(--text2);
+  font-family: 'Nunito', sans-serif;
+  font-size: .78rem;
+  font-weight: 800;
+  cursor: pointer;
+  text-align: center;
+  transition: all .2s;
+  -webkit-tap-highlight-color: transparent;
+}
+.prof-btn.a { border-color: var(--accent); color: var(--accent); background: rgba(0,230,118,.1); }
+.prof-btn.h { border-color: var(--purple); color: var(--purple); background: rgba(179,136,255,.1); }
+
+/* ── AUDIO DEVICE ITEMS ── */
+.dev-list { display: flex; flex-direction: column; gap: 10px; }
+.dev-item {
+  background: var(--surface2);
+  border: 2px solid var(--border);
+  border-radius: 18px;
+  padding: 15px 17px;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  cursor: pointer;
+  transition: all .2s;
+}
+.dev-item:active { transform: scale(.98); }
+.dev-item.sel-in  { border-color: var(--accent); background: rgba(0,230,118,.04); }
+.dev-item.sel-out { border-color: var(--blue); background: rgba(64,196,255,.04); }
+.dev-icon { font-size: 1.9rem; flex-shrink: 0; }
+.dev-info { flex: 1; min-width: 0; }
+.dev-name { font-size: .95rem; font-weight: 800; }
+.dev-ch   { font-size: .72rem; color: var(--text2); margin-top: 3px; font-weight: 600; }
+.dev-badge { font-size: .68rem; font-weight: 800; padding: 3px 10px; border-radius: 20px; margin-top: 5px; display: inline-block; }
+.dev-badge.in  { background: rgba(0,230,118,.18); color: var(--accent); }
+.dev-badge.out { background: rgba(64,196,255,.14); color: var(--blue); }
+
+/* ── INFO CARD ── */
+.info-row { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.info-row:last-child { border-bottom: none; padding-bottom: 0; }
+.info-row:first-child { padding-top: 0; }
+.info-icon { font-size: 1.4rem; flex-shrink: 0; width: 32px; text-align: center; }
+.info-label { font-size: .72rem; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; }
+.info-value { font-size: .95rem; font-weight: 800; margin-top: 2px; }
+
+/* ── LOG ── */
+.log-box {
+  background: #010409;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px 16px;
+  font-size: .78rem;
+  color: #3fb950;
+  line-height: 1.9;
+  max-height: 100px;
+  overflow-y: auto;
+  font-weight: 700;
+}
+.log-box .err  { color: var(--danger); }
+.log-box .ok   { color: var(--accent); }
+.log-box .info { color: var(--warn); }
+
+/* ── SPINNER ── */
+.spin { display: inline-block; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── BATTERY ── */
+.bt-battery { font-size: .78rem; font-weight: 800; margin-top: 5px; display: inline-flex; align-items: center; gap: 4px; }
+.bt-battery.high { color: var(--accent); }
+.bt-battery.mid  { color: var(--warn); }
+.bt-battery.low  { color: var(--danger); animation: blink 1s ease-in-out infinite; }
+.bt-profile-active { font-size: .68rem; font-weight: 800; padding: 2px 9px; border-radius: 10px; margin-top: 4px; display: inline-block; margin-left: 5px; }
+.bt-profile-active.a2dp { background: rgba(0,230,118,.15); color: var(--accent); }
+.bt-profile-active.hfp  { background: rgba(179,136,255,.15); color: var(--purple); }
+/* ── QR CODE ── */
+.qr-wrap { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 8px 0; }
+.qr-wrap canvas, .qr-wrap img { border-radius: 12px; border: 3px solid var(--border); }
+.qr-label { font-size: .8rem; font-weight: 700; color: var(--text2); text-align: center; word-break: break-all; }
+/* ── EMPTY MSG ── */
+.empty { font-size: .9rem; color: var(--text2); font-weight: 700; text-align: center; padding: 8px 0; line-height: 1.5; }
+
+/* ── BOTTOM NAV ── */
+.bottom-nav {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  display: flex;
+  z-index: 100;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.nav-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 10px 4px 12px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: color .2s;
+  color: var(--muted);
+  font-size: .68rem;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.nav-item .ni { font-size: 1.55rem; transition: transform .2s; }
+.nav-item.active { color: var(--accent); }
+.nav-item.active .ni { transform: scale(1.18); }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <h1>👂 VovôAmp</h1>
+    <p>Amplificador de Som Pessoal</p>
+  </header>
+
+  <div class="conn-bar">
+    <div class="conn-dot" id="connDot"></div>
+    <span id="connText" style="font-weight:800;font-size:.9rem;">Conectando...</span>
+  </div>
+
+  <!-- ══ AMP ══ -->
+  <div class="page active" id="page-amp">
+
+    <div class="card">
+      <div class="vu-wrap">
+        <div class="vu-bars" id="vuBars"></div>
+        <div class="status-center">
+          <div class="status-icon" id="statusIcon">😴</div>
+          <div id="statusText">Parado</div>
+          <div id="deviceInfo"></div>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn-giant go" id="btnToggle" onclick="toggleAudio()">
+      <span class="gi">▶</span> Iniciar Amplificador
+    </button>
+
+    <div class="card">
+      <div class="card-title">🔊 Amplificação</div>
+      <div class="sl-header">
+        <span class="sl-label">Quanto amplificar</span>
+        <span class="sl-val" id="gainVal">3.0<small>×</small></span>
+      </div>
+      <input type="range" id="gainSlider" min="10" max="100" value="30" step="5" oninput="onGain()"/>
+      <div class="range-ends"><span>Baixo 1×</span><span>Médio 5×</span><span>Alto 10×</span></div>
+      
+      <div style="margin-top:20px; border-top:1px solid var(--border); padding-top:15px;">
+        <div class="sl-header">
+          <span class="sl-label">🎤 Volume de Entrada</span>
+          <span class="sl-val" id="inVolVal">100<small>%</small></span>
+        </div>
+        <input type="range" id="inVolSlider" min="0" max="150" value="100" step="5" oninput="onInVol()"/>
+        <div class="range-ends"><span>Mudo</span><span>150%</span></div>
+      </div>
+      <div style="margin-top:20px; border-top:1px solid var(--border); padding-top:15px;">
+        <div class="sl-header">
+          <span class="sl-label">🔊 Volume de Saída</span>
+          <span class="sl-val" id="volVal">80<small>%</small></span>
+        </div>
+        <input type="range" id="volSlider" min="0" max="100" value="80" step="5" oninput="onVol()"/>
+        <div class="range-ends"><span>Mudo</span><span>Máximo</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🎛️ Filtros</div>
+      <div class="tog-row" style="margin-bottom:10px; border-bottom:1px solid var(--border); padding-bottom:10px;">
+        <div class="tog-info">
+          <div class="tog-name">Redução de Ruído IA</div>
+          <div class="tog-desc">Usa Rede Neural para apagar barulhos</div>
+        </div>
+        <label class="sw"><input type="checkbox" id="toggleAI" onchange="sendSetting('ai_denoise',this.checked)"/><span class="sw-track"></span></label>
+      </div>
+      
+      <div id="aiSection" style="padding:10px 0 15px; border-bottom:1px solid var(--border); margin-bottom:10px;">
+        <div class="sl-header">
+          <span class="sl-label">Intensidade da IA</span>
+          <span class="sl-val" id="aiIntVal">100<small>%</small></span>
+        </div>
+        <input type="range" id="aiIntSlider" min="0" max="100" value="100" step="5" oninput="onAIInt()"/>
+        <div class="range-ends"><span>Suave</span><span>Máxima</span></div>
+      </div>
+
+      <div class="card-title" style="font-size:0.9rem; margin-top:5px; color:var(--text2)">📍 Cenários de Ambiente</div>
+      <div style="display:flex; gap:8px; margin-bottom:15px;">
+        <button class="btn" onclick="applyScenario('quiet')" style="flex:1; font-size:0.8rem; padding:8px;">🍃 Silencioso</button>
+        <button class="btn" onclick="applyScenario('balanced')" style="flex:1; font-size:0.8rem; padding:8px;">🏙️ Cidade</button>
+        <button class="btn" onclick="applyScenario('noisy')" style="flex:1; font-size:0.8rem; padding:8px;">🌪️ Barulhento</button>
+      </div>
+
+      <div class="tog-row">
+        <div class="tog-info">
+          <div class="tog-name">Corte de Graves</div>
+          <div class="tog-desc">Remove ruídos de fundo (ventilador, AC)</div>
+        </div>
+        <label class="sw"><input type="checkbox" id="toggleHP" checked onchange="sendSetting('hp_enabled',this.checked)"/><span class="sw-track"></span></label>
+      </div>
+      <div style="padding:12px 0 0" id="hpSection">
+        <div class="sl-header"><span class="sl-label">Frequência de corte</span><span class="sl-val" style="font-size:1.2rem" id="hpVal">120<small>Hz</small></span></div>
+        <input type="range" id="hpSlider" min="60" max="300" value="120" step="10" oninput="onHP()"/>
+        <div class="range-ends"><span>60Hz</span><span>300Hz</span></div>
+      </div>
+      <div class="tog-row" style="margin-top:10px;">
+        <div class="tog-info">
+          <div class="tog-name">Compressor</div>
+          <div class="tog-desc">Mantém volume constante, reduz picos</div>
+        </div>
+        <label class="sw"><input type="checkbox" id="toggleComp" checked onchange="sendSetting('comp_enabled',this.checked)"/><span class="sw-track"></span></label>
+      </div>
+      <div class="tog-row">
+        <div class="tog-info">
+          <div class="tog-name">Gate de Silêncio</div>
+          <div class="tog-desc">Muda quando ninguém fala</div>
+        </div>
+        <label class="sw"><input type="checkbox" id="toggleGate" onchange="onGateToggle(this.checked)"/><span class="sw-track"></span></label>
+      </div>
+      <div id="gateSection" style="display:none;padding-top:12px;">
+        <div class="sl-header"><span class="sl-label">Sensibilidade</span><span class="sl-val" style="font-size:1.2rem" id="gateVal">-40<small>dB</small></span></div>
+        <input type="range" id="gateSlider" min="-70" max="-10" value="-40" step="5" oninput="onGate()"/>
+        <div class="range-ends"><span>−70dB</span><span>−10dB</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📋 Diagnóstico</div>
+      <div class="log-box" id="logBox"></div>
+    </div>
+
+  </div>
+
+  <!-- ══ BLUETOOTH ══ -->
+  <div class="page" id="page-bt">
+
+    <div class="card">
+      <div class="card-title">🎧 Meus Fones</div>
+      <div class="bt-list" id="pairedList">
+        <div class="empty">Carregando...</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🔍 Adicionar Novo Fone</div>
+      <p style="font-size:.9rem;color:var(--text2);font-weight:700;margin-bottom:14px;line-height:1.5;">
+        Coloque o fone em modo pareamento (LED piscando rápido) e toque no botão abaixo.
+      </p>
+      <button class="btn primary full" id="btnScan" onclick="startScan()">
+        <span class="bicon">🔍</span> Escanear Bluetooth (8s)
+      </button>
+      <div class="bt-list" id="scanList" style="margin-top:14px;"></div>
+    </div>
+
+  </div>
+
+  <!-- ══ ÁUDIO ══ -->
+  <div class="page" id="page-audio">
+
+    <div class="card">
+      <div class="card-title">🎙️ Microfone (Entrada)</div>
+      <p style="font-size:.88rem;color:var(--text2);font-weight:700;margin-bottom:14px;line-height:1.4;">
+        Toque no dispositivo para usar como microfone.
+      </p>
+      <button class="btn primary full" onclick="loadDevices()" style="margin-bottom:14px;">
+        <span class="bicon">🔄</span> Atualizar lista
+      </button>
+      <div class="dev-list" id="inputList"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🔊 Saída (Fone / Caixa)</div>
+      <div class="dev-list" id="outputList"></div>
+    </div>
+
+    <button class="btn-giant go" onclick="applyDevices()" style="padding:18px 20px;font-size:1.1rem;">
+      <span class="gi">✓</span> Aplicar e Reiniciar Áudio
+    </button>
+
+    <div class="card">
+      <div class="card-title">📌 Seleção Atual</div>
+      <div class="info-row">
+        <div class="info-icon">🎙️</div>
+        <div><div class="info-label">Entrada</div><div class="info-value" id="selInName">—</div></div>
+      </div>
+      <div class="info-row">
+        <div class="info-icon">🔊</div>
+        <div><div class="info-label">Saída</div><div class="info-value" id="selOutName">—</div></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ══ INFO ══ -->
+  <div class="page" id="page-info">
+
+    <div class="card">
+      <div class="card-title">📶 Hotspot Wi-Fi</div>
+      <div class="info-row">
+        <div class="info-icon">📡</div>
+        <div><div class="info-label">Nome da Rede (SSID)</div><div class="info-value" id="infoSsid">—</div></div>
+      </div>
+      <div class="info-row">
+        <div class="info-icon">🔑</div>
+        <div><div class="info-label">Senha</div><div class="info-value" id="infoPass">—</div></div>
+      </div>
+      <div class="info-row">
+        <div class="info-icon">📱</div>
+        <div><div class="info-label">Endereço (Wi-Fi)</div><div class="info-value" id="infoWlanIp">—</div></div>
+      </div>
+      <div class="info-row">
+        <div class="info-icon">🖥️</div>
+        <div><div class="info-label">Endereço (Cabo)</div><div class="info-value" id="infoEthIp">—</div></div>
+      </div>
+      <div class="info-row">
+        <div class="info-icon">🌐</div>
+        <div><div class="info-label">Endereço IPv6</div><div class="info-value" id="infoIpv6">—</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">ℹ️ Como Conectar</div>
+      <div style="font-size:.92rem;font-weight:700;color:var(--text2);line-height:1.8;">
+        <p>1. No celular, vá em <strong style="color:var(--text);">Configurações → Wi-Fi</strong></p>
+        <p>2. Conecte na rede <strong style="color:var(--accent);" id="infoSsid2">vovoamp</strong></p>
+        <p>3. Use a senha mostrada acima</p>
+        <p>4. Abra o navegador e acesse <strong style="color:var(--accent);">vovoamp.wifi</strong></p>
+      </div>
+    </div>
+
+
+    <div class="card">
+      <div class="card-title">📱 QR Code — Acesso Direto</div>
+      <div class="qr-wrap">
+        <div id="qrHotspot"></div>
+        <div class="qr-label" id="qrHotspotLabel">http://192.168.50.1</div>
+      </div>
+      <div style="border-top:1px solid var(--border);margin:12px 0;"></div>
+      <div class="qr-wrap">
+        <div id="qrIpv6"></div>
+        <div class="qr-label" id="qrIpv6Label">Acesso externo via IPv6</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🚀 Desempenho do Sistema</div>
+      <div class="info-row">
+        <div class="info-icon" id="statTempIcon">🌡️</div>
+        <div><div class="info-label">Temperatura CPU</div><div class="info-value" id="statTemp">—</div></div>
+      </div>
+      <div class="info-row">
+        <div class="info-icon">📊</div>
+        <div><div class="info-label">Carga da CPU</div><div class="info-value" id="statCpu">—</div></div>
+      </div>
+      <div class="info-row">
+        <div class="info-icon">🧠</div>
+        <div><div class="info-label">Uso de RAM</div><div class="info-value" id="statRam">—</div></div>
+      </div>
+      <div class="info-row">
+        <div class="info-icon">⚡</div>
+        <div><div class="info-label">Clock Atual</div><div class="info-value" id="statFreq">—</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🔧 VovôAmp</div>
+      <div class="info-row">
+        <div class="info-icon">⚙️</div>
+        <div><div class="info-label">Versão</div><div class="info-value">v3.2 — OrangePi 3</div></div>
+      </div>
+      <div class="info-row">
+        <div class="info-icon">🎵</div>
+        <div><div class="info-label">Taxa de Amostragem</div><div class="info-value">48.000 Hz</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🛠️ Manutenção do Sistema</div>
+      <p style="font-size:.85rem;color:var(--text2);font-weight:700;margin-bottom:14px;line-height:1.4;">
+        Se o fone Bluetooth conectar mas não sair som ou não aparecer na lista de Áudio, use estes botões:
+      </p>
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <button class="btn primary full" onclick="systemAction('restart-audio')">
+          <span class="bicon">🔄</span> Reiniciar Áudio (Rápido - 10s)
+        </button>
+        <button class="btn danger full" onclick="systemAction('reboot')">
+          <span class="bicon">⚡</span> Reiniciar OrangePi (Reboot)
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+</div><!-- .app -->
+
+<!-- ── BOTTOM NAV ── -->
+<nav class="bottom-nav">
+  <div class="nav-item active" id="nav-amp" onclick="showPage('amp')">
+    <span class="ni">🎙️</span><span>Amplificador</span>
+  </div>
+  <div class="nav-item" id="nav-bt" onclick="showPage('bt')">
+    <span class="ni">🎧</span><span>Bluetooth</span>
+  </div>
+  <div class="nav-item" id="nav-audio" onclick="showPage('audio')">
+    <span class="ni">🔊</span><span>Áudio</span>
+  </div>
+  <div class="nav-item" id="nav-info" onclick="showPage('info')">
+    <span class="ni">ℹ️</span><span>Info</span>
+  </div>
+</nav>
+
+<script src="/static/lib/qrcode.min.js"></script>
+<script>
+"use strict";
+
+// ── NAVEGAÇÃO ──────────────────────────────────────────────
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+  document.querySelectorAll('.nav-item').forEach(function(n) { n.classList.remove('active'); });
+  document.getElementById('page-' + name).classList.add('active');
+  document.getElementById('nav-'  + name).classList.add('active');
+  if (name === 'bt')    loadPaired();
+  if (name === 'audio') loadDevices();
+}
+
+// ── VU BARS ────────────────────────────────────────────────
+var bars = [];
+var lastActiveVU = -1;
+(function() {
+  var c = document.getElementById('vuBars');
+  for (var i = 0; i < 18; i++) {
+    var b = document.createElement('div');
+    b.className = 'vu-bar';
+    c.appendChild(b);
+    bars.push(b);
+  }
+})();
+function updateVU(level) {
+  var active = Math.round(Math.min(level, 1) * bars.length);
+  if (active === lastActiveVU) return; // Otimização: ignora atualizações se a tela não for mudar
+  lastActiveVU = active;
+  bars.forEach(function(b, i) {
+    if (i < active) {
+      b.style.height = (10 + (i / bars.length) * 48) + 'px';
+      b.style.background = i/bars.length < 0.6 ? '#00e676' : i/bars.length < 0.85 ? '#ffca28' : '#ff5252';
+    } else {
+      b.style.height = '10px';
+      b.style.background = 'var(--border)';
+    }
+  });
+}
+
+// ── LOG ────────────────────────────────────────────────────
+function log(msg, type) {
+  var box = document.getElementById('logBox');
+  var d = document.createElement('div');
+  if (type) d.className = type;
+  d.textContent = '› ' + msg;
+  box.appendChild(d);
+  box.scrollTop = box.scrollHeight;
+}
+
+// ── API ────────────────────────────────────────────────────
+function api(path, method, body) {
+  return fetch(path, {
+    method: method || 'GET',
+    headers: body ? {'Content-Type': 'application/json'} : {},
+    body: body ? JSON.stringify(body) : undefined,
+  }).then(function(r) { return r.json(); });
+}
+function sendSetting(key, value) {
+  var b = {}; b[key] = value;
+  api('/set', 'POST', b).catch(function(e) { log('Erro: ' + e, 'err'); });
+}
+
+// ── CONTROLES ──────────────────────────────────────────────
+var gainTimer = null, hpTimer = null, gateTimer = null;
+function onGain() {
+  var g = document.getElementById('gainSlider').value / 10;
+  document.getElementById('gainVal').innerHTML = g.toFixed(1) + '<small>×</small>';
+  clearTimeout(gainTimer);
+  gainTimer = setTimeout(function() { sendSetting('gain', g); }, 150);
+}
+var volTimer = null, inVolTimer = null;
+function onVol() {
+  var v = document.getElementById('volSlider').value;
+  document.getElementById('volVal').innerHTML = v + '<small>%</small>';
+  clearTimeout(volTimer);
+  volTimer = setTimeout(function() { sendSetting('output_volume', v/100); }, 150);
+}
+function onInVol() {
+  var v = document.getElementById('inVolSlider').value;
+  document.getElementById('inVolVal').innerHTML = v + '<small>%</small>';
+  clearTimeout(inVolTimer);
+  inVolTimer = setTimeout(function() { sendSetting('input_volume', v/100); }, 150);
+}
+function onHP() {
+  var v = parseInt(document.getElementById('hpSlider').value);
+  document.getElementById('hpVal').innerHTML = v + '<small>Hz</small>';
+  clearTimeout(hpTimer);
+  hpTimer = setTimeout(function() { sendSetting('hp_freq', v); }, 200);
+}
+function onGateToggle(on) {
+  document.getElementById('gateSection').style.display = on ? 'block' : 'none';
+  sendSetting('gate_enabled', on);
+}
+function onGate() {
+  var v = parseInt(document.getElementById('gateSlider').value);
+  document.getElementById('gateVal').innerHTML = v + '<small>dB</small>';
+  clearTimeout(gateTimer);
+  gateTimer = setTimeout(function() { sendSetting('gate_thresh', v); }, 200);
+}
+
+var aiIntTimer = null;
+function onAIInt() {
+  var v = document.getElementById('aiIntSlider').value;
+  document.getElementById('aiIntVal').innerHTML = v + '<small>%</small>';
+  clearTimeout(aiIntTimer);
+  aiIntTimer = setTimeout(function() { sendSetting('ai_intensity', v/100); }, 150);
+}
+
+function applyScenario(type) {
+  log('Aplicando cenário: ' + type, 'info');
+  var s = {};
+  if (type === 'quiet') {
+    s = { ai_denoise: false, ai_intensity: 0.2, hp_enabled: true, hp_freq: 80, gate_enabled: true, gate_thresh: -60 };
+  } else if (type === 'balanced') {
+    s = { ai_denoise: true, ai_intensity: 0.6, hp_enabled: true, hp_freq: 120, gate_enabled: true, gate_thresh: -45 };
+  } else if (type === 'noisy') {
+    s = { ai_denoise: true, ai_intensity: 1.0, hp_enabled: true, hp_freq: 200, gate_enabled: true, gate_thresh: -30 };
+  }
+  
+  // Envia tudo pro servidor
+  for (var k in s) { sendSetting(k, s[k]); }
+  
+  // Atualiza a UI localmente (opcional, o WS faria depois, mas aqui é imediato)
+  setTimeout(function() { location.reload(); }, 300); // Reload simples para atualizar todos os sliders
+}
+
+// ── TOGGLE AMP ─────────────────────────────────────────────
+var running = false;
+var isToggling = false;
+function toggleAudio() {
+  if (isToggling) return;
+  isToggling = true;
+  var btn = document.getElementById('btnToggle');
+  btn.style.opacity = '0.5';
+  
+  if (!running) {
+    log('Iniciando...', 'info');
+    api('/start', 'POST').then(function(r) {
+      isToggling = false; btn.style.opacity = '1';
+      if (r.ok) { running = true; updateBtn(true); log('Amplificando ✓', 'ok'); }
+      else { log('Erro: ' + r.msg, 'err'); }
+    }).catch(function(e) { isToggling = false; btn.style.opacity = '1'; log('Falha: ' + e, 'err'); });
+  } else {
+    api('/stop', 'POST').then(function() {
+      isToggling = false; btn.style.opacity = '1';
+      running = false; updateBtn(false); updateVU(0); log('Parado.', 'info');
+    }).catch(function() { isToggling = false; btn.style.opacity = '1'; });
+  }
+}
+function applyDevices() {
+  log('Aplicando...', 'info');
+  api('/restart', 'POST').then(function(r) {
+    if (r.ok) { running = true; updateBtn(true); log('Reiniciado ✓', 'ok'); showPage('amp'); }
+    else { log('Erro: ' + r.msg, 'err'); }
+  });
+}
+function updateBtn(on) {
+  var btn = document.getElementById('btnToggle');
+  btn.className = 'btn-giant ' + (on ? 'stop' : 'go');
+  btn.innerHTML = on
+    ? '<span class="gi">⏹</span> Parar Amplificador'
+    : '<span class="gi">▶</span> Iniciar Amplificador';
+  document.getElementById('statusIcon').textContent = on ? '🎵' : '😴';
+  document.getElementById('statusText').textContent = on ? 'Amplificando...' : 'Parado';
+}
+
+// ── WEBSOCKET ──────────────────────────────────────────────
+var ws = null;
+function connectWS() {
+  ws = new WebSocket('ws://' + location.host + '/ws');
+  ws.onopen = function() {
+    document.getElementById('connDot').className = 'conn-dot ok';
+    document.getElementById('connText').textContent = 'Conectado — ' + location.host;
+  };
+  ws.onmessage = function(e) {
+    var m = JSON.parse(e.data);
+    if (m.level !== undefined) updateVU(m.level);
+    // Atualização automática de status BT via WebSocket
+    if (m.bt_devices !== undefined) {
+      renderPairedList(m.bt_devices);
+    }
+    // Atualização de métricas do sistema
+    if (m.stats !== undefined) {
+      updateSystemStats(m.stats);
+    }
+    if (m.ai_denoise !== undefined) {
+      document.getElementById('toggleAI').checked = m.ai_denoise;
+      document.getElementById('aiSection').style.display = m.ai_denoise ? 'block' : 'none';
+    }
+    if (m.ai_intensity !== undefined) {
+      document.getElementById('aiIntSlider').value = Math.round(m.ai_intensity * 100);
+      document.getElementById('aiIntVal').innerHTML = Math.round(m.ai_intensity * 100) + '<small>%</small>';
+    }
+  };
+  ws.onclose = function() {
+    document.getElementById('connDot').className = 'conn-dot err';
+    document.getElementById('connText').textContent = 'Reconectando...';
+    setTimeout(connectWS, 2000);
+  };
+  ws.onerror = function() { ws.close(); };
+}
+
+function updateSystemStats(s) {
+  var t = document.getElementById('statTemp');
+  if (t) {
+    t.textContent = s.temp + ' °C';
+    t.style.color = s.temp > 65 ? 'var(--danger)' : s.temp > 55 ? 'var(--warn)' : 'var(--accent)';
+    document.getElementById('statTempIcon').textContent = s.temp > 65 ? '🔥' : '🌡️';
+  }
+  var c = document.getElementById('statCpu');
+  if (c) {
+    c.textContent = s.cpu.toFixed(1) + ' %';
+    c.style.color = s.cpu > 80 ? 'var(--danger)' : s.cpu > 50 ? 'var(--warn)' : 'var(--text)';
+  }
+  var r = document.getElementById('statRam');
+  if (r) r.textContent = s.ram + ' %';
+  var f = document.getElementById('statFreq');
+  if (f) f.textContent = s.freq + ' MHz';
+}
+
+// ── BLUETOOTH ──────────────────────────────────────────────
+function batteryHtml(pct) {
+  if (pct === null || pct === undefined) return '';
+  var icon = pct > 60 ? '🔋' : pct > 20 ? '🪫' : '⚠️';
+  var cls  = pct > 60 ? 'high' : pct > 20 ? 'mid' : 'low';
+  return '<div class="bt-battery ' + cls + '">' + icon + ' ' + pct + '%</div>';
+}
+function profileBadge(profile) {
+  if (!profile) return '';
+  var isA2dp = profile === 'a2dp';
+  return '<span class="bt-profile-active ' + (isA2dp ? 'a2dp' : 'hfp') + '">' + (isA2dp ? '🎵 A2DP' : '🎤 HFP') + '</span>';
+}
+function renderPairedList(devices) {
+  var list = document.getElementById('pairedList');
+  list.innerHTML = '';
+  if (!devices || devices.length === 0) {
+    list.innerHTML = '<div class="empty">Nenhum fone pareado.<br/>Use o botão abaixo para adicionar.</div>';
+    return;
+  }
+  devices.forEach(function(d) { list.appendChild(renderPairedItem(d)); });
+}
+
+function renderPairedItem(d) {
+  var isConn = d.connected;
+  var el = document.createElement('div');
+  el.className = 'bt-item' + (isConn ? ' connected' : '');
+
+  // Botões de perfil (A2DP / HFP) — só quando conectado
+  var profileHtml = '';
+  if (isConn) {
+    var macId = d.mac.replace(/:/g, '');
+    profileHtml =
+      '<div class="profile-row">' +
+        '<button class="prof-btn a" id="pa-' + macId + '" onclick="setProfile(\'' + d.mac + '\',\'a2dp_sink\',\'' + macId + '\')" title="Modo música — melhor qualidade de som">🎵 Música</button>' +
+        '<button class="prof-btn" id="ph-' + macId + '" onclick="setProfile(\'' + d.mac + '\',\'handsfree_head_unit\',\'' + macId + '\')" title="Ativa o microfone do fone">🎤 Microfone</button>' +
+      '</div>';
+  }
+
+  el.innerHTML =
+    '<div class="bt-icon">' + (isConn ? '🎧' : '📵') + '</div>' +
+    '<div class="bt-info">' +
+      '<div class="bt-name">' + esc(d.name) + '</div>' +
+      '<div class="bt-mac">'  + d.mac + '</div>' +
+      '<span class="bt-badge ' + (isConn ? 'conn' : 'paired') + '">' + (isConn ? '✓ Conectado' : 'Pareado') + '</span>' +
+      (isConn ? profileBadge(d.active_profile) : '') +
+      (isConn ? batteryHtml(d.battery) : '') +
+      profileHtml +
+    '</div>' +
+    '<div class="bt-actions">' +
+      (isConn
+        ? '<button class="btn danger" onclick="btDisconnect(\'' + d.mac + '\')">Desconectar</button>'
+        : '<button class="btn primary" onclick="btConnect(\'' + d.mac + '\')">Conectar</button>') +
+      '<button class="btn" style="font-size:.8rem;border-color:var(--muted);color:var(--muted);" onclick="btRemove(\'' + d.mac + '\',\'' + esc(d.name) + '\')">Remover</button>' +
+    '</div>';
+  return el;
+}
+
+function renderScanItem(d) {
+  var el = document.createElement('div');
+  el.className = 'bt-item';
+  el.innerHTML =
+    '<div class="bt-icon">🔵</div>' +
+    '<div class="bt-info">' +
+      '<div class="bt-name">' + esc(d.name) + '</div>' +
+      '<div class="bt-mac">'  + d.mac + '</div>' +
+      '<span class="bt-badge ' + (d.paired ? 'paired' : 'found') + '">' + (d.paired ? 'Já pareado' : 'Encontrado') + '</span>' +
+    '</div>' +
+    '<div class="bt-actions">' +
+      (d.paired
+        ? '<button class="btn primary" onclick="btConnect(\'' + d.mac + '\')">Conectar</button>'
+        : '<button class="btn blue" onclick="btPair(\'' + d.mac + '\')">Parear</button>') +
+    '</div>';
+  return el;
+}
+
+function loadPaired() {
+  var list = document.getElementById('pairedList');
+  list.innerHTML = '<div class="empty">Carregando...</div>';
+  api('/bt/paired').then(function(r) {
+    renderPairedList(r.devices);
+  }).catch(function() {
+    document.getElementById('pairedList').innerHTML = '<div class="empty" style="color:var(--danger);">Erro ao carregar.</div>';
+  });
+}
+
+function startScan() {
+  var btn  = document.getElementById('btnScan');
+  var list = document.getElementById('scanList');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin">⟳</span> Escaneando... (8s)';
+  list.innerHTML = '';
+  api('/bt/scan', 'POST').then(function(r) {
+    btn.disabled = false;
+    btn.innerHTML = '<span class="bicon">🔍</span> Escanear Bluetooth (8s)';
+    if (!r.devices || r.devices.length === 0) {
+      list.innerHTML = '<div class="empty">Nenhum dispositivo encontrado.<br/>Verifique se o fone está em modo pareamento.</div>';
+      return;
+    }
+    r.devices.forEach(function(d) { list.appendChild(renderScanItem(d)); });
+  }).catch(function() {
+    btn.disabled = false;
+    btn.innerHTML = '<span class="bicon">🔍</span> Escanear Bluetooth (8s)';
+    list.innerHTML = '<div class="empty" style="color:var(--danger);">Erro no scan.</div>';
+  });
+}
+
+function setProfile(mac, profile, macId) {
+  var isA2dp = profile === 'a2dp_sink';
+  log((isA2dp ? 'Ativando música (A2DP)...' : 'Ativando microfone (HFP)...'), 'info');
+  api('/bt/profile', 'POST', {mac: mac, profile: profile}).then(function(r) {
+    if (r.ok) {
+      log('Perfil alterado ✓', 'ok');
+      var pa = document.getElementById('pa-' + macId);
+      var ph = document.getElementById('ph-' + macId);
+      if (pa) pa.className = 'prof-btn' + (isA2dp ? ' a' : '');
+      if (ph) ph.className = 'prof-btn' + (!isA2dp ? ' h' : '');
+    } else {
+      log('Erro: ' + r.msg, 'err');
+    }
+  });
+}
+
+function btPair(mac) {
+  log('Pareando ' + mac + '...', 'info');
+  api('/bt/pair', 'POST', {mac: mac}).then(function(r) {
+    log(r.ok ? 'Pareado e conectado ✓' : 'Erro: ' + r.msg, r.ok ? 'ok' : 'err');
+    if (r.ok) { loadPaired(); loadDevices(); }
+  });
+}
+function btConnect(mac) {
+  log('Conectando...', 'info');
+  api('/bt/connect', 'POST', {mac: mac}).then(function(r) {
+    log(r.ok ? 'Conectado ✓' : 'Erro: ' + r.msg, r.ok ? 'ok' : 'err');
+    if (r.ok) { loadPaired(); loadDevices(); }
+  });
+}
+function btDisconnect(mac) {
+  api('/bt/disconnect', 'POST', {mac: mac}).then(function(r) {
+    log(r.ok ? 'Desconectado.' : 'Erro: ' + r.msg, r.ok ? 'info' : 'err');
+    if (r.ok) loadPaired();
+  });
+}
+function btRemove(mac, name) {
+  if (!confirm('Remover "' + name + '" dos fones pareados?')) return;
+  api('/bt/remove', 'POST', {mac: mac}).then(function(r) {
+    log(r.ok ? 'Removido.' : 'Erro: ' + r.msg, r.ok ? 'info' : 'err');
+    if (r.ok) loadPaired();
+  });
+}
+
+function systemAction(action) {
+  var label = action === 'restart-audio' ? 'reiniciar a pilha de áudio (PipeWire)' : 'reiniciar a OrangePi (reboot)';
+  if (!confirm('Deseja realmente ' + label + '? A conexão será perdida temporariamente.')) return;
+  log('Solicitando ' + action + '...', 'info');
+  api('/system/' + action, 'POST').then(function(r) {
+    if (r.ok) {
+      log(r.msg, 'ok');
+      alert(r.msg + '\nAguarde alguns instantes e recarregue a página.');
+    } else {
+      log('Erro: ' + r.msg, 'err');
+    }
+  }).catch(function(e) {
+    log('Comando enviado. Conexão reiniciando...', 'ok');
+    alert('Comando enviado! O sistema está reiniciando. Aguarde alguns instantes e recarregue a página.');
+  });
+}
+
+// ── DISPOSITIVOS DE ÁUDIO ──────────────────────────────────
+var selInput = null, selOutput = null, allDevices = [];
+function loadDevices() {
+  api('/status').then(function(s) {
+    allDevices = s.devices || [];
+    selInput   = s.input_device;
+    selOutput  = s.output_device;
+    renderDeviceLists();
+    updateSelLabels();
+  });
+}
+function renderDeviceLists() {
+  var inList  = document.getElementById('inputList');
+  var outList = document.getElementById('outputList');
+  inList.innerHTML = ''; outList.innerHTML = '';
+  var inputs  = allDevices.filter(function(d) { return d.type === 'input'; });
+  var outputs = allDevices.filter(function(d) { return d.type === 'output'; });
+  if (inputs.length === 0)  inList.innerHTML  = '<div class="empty">Nenhum microfone detectado.</div>';
+  if (outputs.length === 0) outList.innerHTML = '<div class="empty">Nenhuma saída detectada.</div>';
+  inputs.forEach(function(d) {
+    var el = document.createElement('div');
+    el.className = 'dev-item' + (d.id === selInput ? ' sel-in' : '');
+    var icon = d.name.includes('usb') || d.name.includes('USB') ? '🔌'
+             : d.name.includes('blue') || d.name.includes('hfp') || d.name.includes('bluez') ? '🎧' : '🎙️';
+    el.innerHTML =
+      '<div class="dev-icon">' + icon + '</div>' +
+      '<div class="dev-info">' +
+        '<div class="dev-name">' + esc(d.name) + '</div>' +
+        '<div class="dev-ch">Entrada de áudio</div>' +
+        (d.id === selInput ? '<span class="dev-badge in">✓ Selecionado</span>' : '') +
+      '</div>';
+    el.onclick = function() { selInput = d.id; renderDeviceLists(); updateSelLabels(); };
+    inList.appendChild(el);
+  });
+  outputs.forEach(function(d) {
+    var el = document.createElement('div');
+    el.className = 'dev-item' + (d.id === selOutput ? ' sel-out' : '');
+    var icon = d.name.includes('blue') || d.name.includes('bluez') || d.name.includes('BT') ? '🎧'
+             : d.name.includes('hdmi') || d.name.includes('HDMI') ? '📺' : '🔊';
+    el.innerHTML =
+      '<div class="dev-icon">' + icon + '</div>' +
+      '<div class="dev-info">' +
+        '<div class="dev-name">' + esc(d.name) + '</div>' +
+        '<div class="dev-ch">Saída de áudio</div>' +
+        (d.id === selOutput ? '<span class="dev-badge out">✓ Selecionado</span>' : '') +
+      '</div>';
+    el.onclick = function() { selOutput = d.id; renderDeviceLists(); updateSelLabels(); };
+    outList.appendChild(el);
+  });
+}
+function updateSelLabels() {
+  var inDev  = allDevices.find(function(d) { return d.id === selInput; });
+  var outDev = allDevices.find(function(d) { return d.id === selOutput; });
+  document.getElementById('selInName').textContent  = inDev  ? inDev.name  : '—';
+  document.getElementById('selOutName').textContent = outDev ? outDev.name : '—';
+  if (selInput  !== null) sendSetting('input_device',  selInput);
+  if (selOutput !== null) sendSetting('output_device', selOutput);
+  if (inDev) document.getElementById('deviceInfo').textContent = '🎙️ ' + inDev.name;
+}
+
+// ── UTILITÁRIOS ────────────────────────────────────────────
+function esc(str) {
+  return String(str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── INIT ───────────────────────────────────────────────────
+api('/status').then(function(s) {
+  running = s.running;
+  updateBtn(s.running);
+  document.getElementById('gainSlider').value   = Math.round(s.gain * 10);
+  document.getElementById('gainVal').innerHTML  = s.gain.toFixed(1) + '<small>×</small>';
+  document.getElementById('volSlider').value    = Math.round(s.output_volume * 100);
+  document.getElementById('inVolSlider').value   = Math.round((s.input_volume || 1.0) * 100);
+  document.getElementById('inVolVal').innerHTML  = Math.round((s.input_volume || 1.0) * 100) + '<small>%</small>';
+  document.getElementById('volVal').innerHTML   = Math.round(s.output_volume * 100) + '<small>%</small>';
+  document.getElementById('toggleHP').checked   = s.hp_enabled;
+  document.getElementById('hpSlider').value     = s.hp_freq;
+  document.getElementById('hpVal').innerHTML    = s.hp_freq + '<small>Hz</small>';
+  document.getElementById('toggleComp').checked = s.comp_enabled;
+  document.getElementById('toggleGate').checked = s.gate_enabled;
+  document.getElementById('gateSection').style.display = s.gate_enabled ? 'block' : 'none';
+  document.getElementById('gateSlider').value   = s.gate_thresh;
+  document.getElementById('gateVal').innerHTML  = s.gate_thresh + '<small>dB</small>';
+  document.getElementById('toggleAI').checked   = s.ai_denoise || false;
+  document.getElementById('aiIntSlider').value  = Math.round((s.ai_intensity || 1) * 100);
+  document.getElementById('aiIntVal').innerHTML = Math.round((s.ai_intensity || 1) * 100) + '<small>%</small>';
+  document.getElementById('aiSection').style.display = s.ai_denoise ? 'block' : 'none';
+  allDevices = s.devices || [];
+  selInput   = s.input_device;
+  selOutput  = s.output_device;
+
+  // Info do hotspot
+  if (s.network) {
+    document.getElementById('infoSsid').textContent   = s.network.ssid    || '—';
+    document.getElementById('infoSsid2').textContent  = s.network.ssid    || 'vovoamp';
+    document.getElementById('infoPass').textContent   = s.network.password|| '—';
+    document.getElementById('infoWlanIp').textContent = s.network.wlan_ip || '—';
+    document.getElementById('infoEthIp').textContent  = s.network.eth_ip  || '—';
+    document.getElementById('infoIpv6').textContent   = s.network.ipv6    || '—';
+
+    // QR Code hotspot (IPv4 Dinâmico)
+    var qrHotspotEl = document.getElementById('qrHotspot');
+    var hotspotIp = s.network.wlan_ip || '192.168.50.1';
+    var hotspotUrl = 'http://' + hotspotIp;
+    
+    if (qrHotspotEl && qrHotspotEl.children.length === 0) {
+      new QRCode(qrHotspotEl, {
+        text: hotspotUrl,
+        width: 180, height: 180,
+        colorDark: '#00e676',
+        colorLight: '#0d1117',
+        correctLevel: QRCode.CorrectLevel.M
+      });
+      document.getElementById('qrHotspotLabel').textContent = hotspotUrl;
+    }
+
+    // QR Code IPv6
+    var qrIpv6El = document.getElementById('qrIpv6');
+    if (qrIpv6El && s.network && s.network.ipv6) {
+      var ipv6Url = 'http://[' + s.network.ipv6 + ']';
+      if (qrIpv6El.children.length === 0) {
+        new QRCode(qrIpv6El, {
+          text: ipv6Url,
+          width: 180, height: 180,
+          colorDark: '#40c4ff',
+          colorLight: '#0d1117',
+          correctLevel: QRCode.CorrectLevel.M
+        });
+      }
+      document.getElementById('qrIpv6Label').textContent = ipv6Url;
+    } else if (qrIpv6El) {
+      document.getElementById('qrIpv6Label').textContent = 'IPv6 não disponível';
+    }
+  }
+
+  if (s.running) log('Já amplificando ✓', 'ok');
+  log('Pi conectado ✓', 'ok');
+  connectWS();
+}).catch(function() {
+  document.getElementById('connDot').className = 'conn-dot err';
+  document.getElementById('connText').textContent = 'Sem conexão com o Pi';
+  log('Sem conexão. Verifique o Wi-Fi.', 'err');
+});
+</script>
+</body>
+</html>

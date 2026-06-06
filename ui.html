@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
+<title>VovôAmp</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,opsz,wght@0,9..144,300;1,9..144,200&display=swap" rel="stylesheet"/>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0a0f0d; --surface: #111a15; --surface2: #16241b; --border: #1e2e24;
+    --accent: #3ddc84; --warn: #ffb300; --danger: #ff5252; --blue: #40c4ff;
+    --text: #e8f5e9; --text2: #a3c2af; --muted: #4a6855; --radius: 20px;
+  }
+  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'DM Mono', monospace; overflow-x: hidden; }
+  .app { max-width: 440px; margin: 0 auto; padding: 28px 18px 96px; min-height: 100vh; display: flex; flex-direction: column; gap: 16px; }
+  header { text-align: center; padding: 8px 0 0; }
+  header h1 { font-family: 'Fraunces', serif; font-size: clamp(2.2rem, 8vw, 2.8rem); font-weight: 300; letter-spacing: -1px; color: var(--accent); line-height: 1; }
+  header p { font-size: 0.68rem; color: var(--muted); letter-spacing: 0.14em; text-transform: uppercase; margin-top: 5px; }
+
+  .ws-status { position: fixed; top: 10px; right: 10px; font-size: 10px; padding: 4px 8px; border-radius: 10px; background: var(--danger); z-index: 1000; }
+  .ws-status.connected { background: var(--accent); color: #000; }
+
+  .page { display: none; flex-direction: column; gap: 16px; }
+  .page.active { display: flex; }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px 22px; }
+  .card-title { font-size: 0.58rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin-bottom: 14px; }
+
+  /* VU */
+  .vu-wrap { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  .vu-bars { display: flex; gap: 3px; align-items: flex-end; height: 52px; }
+  .vu-bar { width: 9px; border-radius: 3px 3px 0 0; background: var(--border); height: 8px; transition: height 0.05s ease; }
+  .status-row { display: flex; align-items: center; gap: 10px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); flex-shrink: 0; transition: all 0.3s; }
+  .dot.active { background: var(--accent); animation: pulse 1.8s ease-in-out infinite; }
+  .dot.gated  { background: var(--warn); }
+  @keyframes pulse { 0%,100%{box-shadow:0 0 0 3px rgba(61,220,132,.2),0 0 10px rgba(61,220,132,.4)}50%{box-shadow:0 0 0 7px rgba(61,220,132,.07),0 0 20px rgba(61,220,132,.3)} }
+  #statusText { font-size: 0.85rem; }
+
+  /* CONTROLS */
+  .ctrl-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
+  .ctrl-label { font-size: 0.62rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+  .ctrl-val { font-family: 'Fraunces', serif; font-size: 1.6rem; font-weight: 300; font-style: italic; color: var(--accent); line-height: 1; }
+  .ctrl-val small { font-size: 0.8rem; color: var(--muted); font-style: normal; font-family: 'DM Mono', monospace; }
+  input[type=range] { -webkit-appearance: none; width: 100%; height: 5px; border-radius: 3px; background: var(--border); outline: none; cursor: pointer; margin-bottom: 6px; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%; background: var(--accent); border: 3px solid var(--bg); box-shadow: 0 0 6px rgba(61,220,132,.5); }
+  .range-ends { display: flex; justify-content: space-between; font-size: 0.58rem; color: var(--muted); }
+
+  /* TOGGLES */
+  .switch-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .switch-row:last-child { border-bottom: none; padding-bottom: 0; }
+  .switch-info { display: flex; flex-direction: column; gap: 3px; }
+  .switch-name { font-size: 0.82rem; color: var(--text); }
+  .switch-desc { font-size: 0.62rem; color: var(--muted); }
+  .toggle { position: relative; width: 44px; height: 24px; flex-shrink: 0; }
+  .toggle input { opacity: 0; width: 0; height: 0; }
+  .slider-sw { position: absolute; inset: 0; background: var(--border); border-radius: 24px; cursor: pointer; transition: background .3s; }
+  .slider-sw::before { content: ''; position: absolute; width: 18px; height: 18px; left: 3px; top: 3px; border-radius: 50%; background: var(--muted); transition: transform .3s, background .3s; }
+  input:checked + .slider-sw { background: rgba(61,220,132,.25); border: 1px solid var(--accent); }
+  input:checked + .slider-sw::before { transform: translateX(20px); background: var(--accent); }
+
+  /* BUTTONS */
+  .btn-main { width: 100%; padding: 18px; border: none; border-radius: var(--radius); font-family: 'DM Mono', monospace; font-size: 1.05rem; font-weight: 500; letter-spacing: 0.06em; cursor: pointer; color: #021007; transition: transform .15s, background .3s, box-shadow .3s; }
+  .btn-main:active { transform: scale(.97); }
+  .btn-main.off { background: var(--accent); box-shadow: 0 4px 20px rgba(61,220,132,.3); }
+  .btn-main.on  { background: var(--danger); box-shadow: 0 4px 20px rgba(255,82,82,.3); }
+
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 14px; border-radius: 12px; border: 1px solid var(--border); background: transparent; color: var(--text); font-family: 'DM Mono', monospace; font-size: 0.85rem; cursor: pointer; transition: all .2s; width: 100%; margin-top: 10px;}
+  .btn.primary { border-color: var(--accent); color: var(--accent); background: rgba(61,220,132,.05); }
+
+  /* LOG */
+  .log-box { background: #060d09; border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; font-size: 0.68rem; color: #4a8c5c; line-height: 1.9; max-height: 130px; overflow-y: auto; }
+
+  /* BOTTOM NAV */
+  .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: var(--surface); border-top: 1px solid var(--border); display: flex; z-index: 100; padding-bottom: env(safe-area-inset-bottom); }
+  .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 12px 4px; cursor: pointer; color: var(--muted); font-size: 0.6rem; letter-spacing: .08em; text-transform: uppercase; transition: color .2s; }
+  .nav-item .ni { font-size: 1.3rem; transition: transform .2s; }
+  .nav-item.active { color: var(--accent); }
+  .nav-item.active .ni { transform: scale(1.15); }
+
+  /* DEVICE/BT ITEMS */
+  .item-list { display: flex; flex-direction: column; gap: 10px; }
+  .list-item { background: var(--surface2); border: 1px solid var(--border); border-radius: 14px; padding: 14px; display: flex; align-items: center; gap: 12px; transition: border-color .3s; }
+  .list-item.sel { border-color: var(--accent); background: rgba(61,220,132,.08); }
+  .list-icon { font-size: 1.5rem; flex-shrink: 0; }
+  .list-info { flex: 1; overflow: hidden; }
+  .list-name { font-size: 0.85rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .list-sub  { font-size: 0.65rem; color: var(--muted); margin-top: 4px; }
+  .badge { font-size: 0.6rem; padding: 3px 8px; border-radius: 10px; background: rgba(61,220,132,.15); color: var(--accent); display: inline-block; margin-top: 4px; }
+</style>
+</head>
+<body>
+<div class="ws-status" id="wsStatus">Desconectado</div>
+<div class="app">
+
+  <header>
+    <h1>👂 VovôAmp</h1>
+    <p>Controle Remoto</p>
+  </header>
+
+  <!-- ══ PAGE AMP ══ -->
+  <div class="page active" id="page-amp">
+    <div class="card">
+      <div class="vu-wrap">
+        <div class="vu-bars" id="vuBars"></div>
+        <div class="status-row">
+          <div class="dot" id="dot"></div>
+          <span id="statusText">Aguardando...</span>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn-main off" id="btnToggle">▶&nbsp; Iniciar Áudio no Pi</button>
+
+    <div class="card">
+      <div class="ctrl-row">
+        <div class="ctrl-label">Amplificação</div>
+        <div class="ctrl-val" id="gainDisplay">3.0<small>×</small></div>
+      </div>
+      <input type="range" id="gainSlider" min="10" max="100" value="30" step="5"/>
+      <div class="range-ends"><span>1×</span><span>5×</span><span>10×</span></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Filtros</div>
+      <div class="switch-row">
+        <div class="switch-info"><span class="switch-name">Corte de graves</span></div>
+        <label class="toggle"><input type="checkbox" id="toggleHP" checked/><span class="slider-sw"></span></label>
+      </div>
+      <div class="switch-row">
+        <div class="switch-info"><span class="switch-name">Compressor</span></div>
+        <label class="toggle"><input type="checkbox" id="toggleComp" checked/><span class="slider-sw"></span></label>
+      </div>
+      <div class="switch-row">
+        <div class="switch-info"><span class="switch-name">Gate de Silêncio</span></div>
+        <label class="toggle"><input type="checkbox" id="toggleGate"/><span class="slider-sw"></span></label>
+      </div>
+    </div>
+    
+    <div class="card">
+      <div class="card-title">Log do Sistema</div>
+      <div class="log-box" id="logBox"></div>
+    </div>
+  </div>
+
+  <!-- ══ PAGE BT ══ -->
+  <div class="page" id="page-bt">
+    <div class="card">
+      <div class="card-title">Fones Pareados e Conectados</div>
+      <div class="item-list" id="btList">Carregando...</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Adicionar Fone</div>
+      <p style="font-size:0.75rem; color:var(--text2); margin-bottom:10px;">Coloque o fone em modo de pareamento.</p>
+      <button class="btn primary" id="btnScan">🔍 Escanear Bluetooth</button>
+      <div class="item-list" id="btScanList" style="margin-top:14px;"></div>
+    </div>
+  </div>
+
+  <!-- ══ PAGE AUDIO ══ -->
+  <div class="page" id="page-audio">
+    <div class="card">
+      <div class="card-title">Microfone (Entrada)</div>
+      <div class="item-list" id="inList">Carregando...</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Fone / Caixa (Saída)</div>
+      <div class="item-list" id="outList">Carregando...</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- BOTTOM NAV -->
+<nav class="bottom-nav">
+  <div class="nav-item active" id="nav-amp" onclick="showPage('amp')">
+    <span class="ni">🎙️</span><span>Controle</span>
+  </div>
+  <div class="nav-item" id="nav-bt" onclick="showPage('bt')">
+    <span class="ni">🎧</span><span>Bluetooth</span>
+  </div>
+  <div class="nav-item" id="nav-audio" onclick="showPage('audio')">
+    <span class="ni">🔊</span><span>Áudio</span>
+  </div>
+</nav>
+
+<script>
+let ws;
+const NUM_BARS = 20;
+const vuContainer = document.getElementById('vuBars');
+const bars = [];
+for (let i = 0; i < NUM_BARS; i++) {
+  const b = document.createElement('div'); b.className = 'vu-bar';
+  vuContainer.appendChild(b); bars.push(b);
+}
+
+const statusDot = document.getElementById('dot');
+const statusText = document.getElementById('statusText');
+const btnToggle = document.getElementById('btnToggle');
+let isRunning = false;
+let globalState = {};
+
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  document.getElementById('nav-'  + name).classList.add('active');
+  if (name === 'audio' && ws) ws.send(JSON.stringify({ type: 'req_audio_devices' }));
+}
+
+function updateVU(level) {
+  const active = Math.round(Math.min(level, 1) * NUM_BARS);
+  bars.forEach((b, i) => {
+    b.style.height = (i < active) ? (8 + (i / NUM_BARS) * 44) + 'px' : '8px';
+    b.style.background = i < active ? (i/NUM_BARS < 0.6 ? '#3ddc84' : i/NUM_BARS < 0.85 ? '#ffb300' : '#ff5252') : 'var(--border)';
+  });
+}
+
+function log(msg, type = '') {
+  const d = document.createElement('div'); d.className = type; d.textContent = '› ' + msg;
+  const logBox = document.getElementById('logBox'); logBox.appendChild(d); logBox.scrollTop = logBox.scrollHeight;
+}
+
+function connectWS() {
+  ws = new WebSocket(`ws://${window.location.host}/ws?type=ui`);
+  ws.onopen = () => {
+    document.getElementById('wsStatus').textContent = 'Conectado';
+    document.getElementById('wsStatus').className = 'ws-status connected';
+    log('Conectado ao servidor.', 'ok');
+  };
+  ws.onmessage = (evt) => {
+    const data = JSON.parse(evt.data);
+    if (data.type === 'vu') { updateVU(data.rms * 8); } 
+    else if (data.type === 'state_sync' || data.type === 'config') {
+      globalState = Object.assign(globalState, data.state);
+      syncUIWithState();
+    }
+    else if (data.type === 'status') {
+      updateRunningState(data.running);
+      if (data.msg) log(data.msg, data.msgType || 'info');
+    }
+    else if (data.type === 'log') { log(data.msg, data.msgType || 'info'); }
+    else if (data.type === 'audio_devices') { renderAudioDevices(data.devices); }
+    else if (data.type === 'bt_status') { renderBT(data.devices, 'btList', false); }
+    else if (data.type === 'bt_scan_res') { renderBT(data.devices, 'btScanList', true); }
+  };
+  ws.onclose = () => {
+    document.getElementById('wsStatus').textContent = 'Desconectado';
+    document.getElementById('wsStatus').className = 'ws-status';
+    updateRunningState(false);
+    setTimeout(connectWS, 2000);
+  };
+}
+
+function updateRunningState(running) {
+  isRunning = running;
+  btnToggle.textContent = running ? '⏹ Parar Áudio' : '▶ Iniciar Áudio no Pi';
+  btnToggle.className = 'btn-main ' + (running ? 'on' : 'off');
+  statusDot.className = running ? 'dot active' : 'dot';
+  statusText.textContent = running ? 'Ativo' : 'Aguardando...';
+  if (!running) updateVU(0);
+}
+
+function syncUIWithState() {
+  if (globalState.gain !== undefined) {
+    document.getElementById('gainSlider').value = globalState.gain;
+    document.getElementById('gainDisplay').innerHTML = (globalState.gain/10).toFixed(1) + '<small>×</small>';
+  }
+  if (globalState.hpOn !== undefined) document.getElementById('toggleHP').checked = globalState.hpOn;
+  if (globalState.compOn !== undefined) document.getElementById('toggleComp').checked = globalState.compOn;
+  if (globalState.gateOn !== undefined) document.getElementById('toggleGate').checked = globalState.gateOn;
+  if (globalState.running !== undefined) updateRunningState(globalState.running);
+}
+
+function sendConfig() {
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  const state = {
+    gain: parseInt(document.getElementById('gainSlider').value),
+    hpOn: document.getElementById('toggleHP').checked,
+    compOn: document.getElementById('toggleComp').checked,
+    gateOn: document.getElementById('toggleGate').checked
+  };
+  ws.send(JSON.stringify({ type: 'config', state }));
+}
+
+document.getElementById('gainSlider').addEventListener('input', (e) => {
+  document.getElementById('gainDisplay').innerHTML = (e.target.value/10).toFixed(1) + '<small>×</small>';
+  sendConfig();
+});
+document.getElementById('toggleHP').addEventListener('change', sendConfig);
+document.getElementById('toggleComp').addEventListener('change', sendConfig);
+document.getElementById('toggleGate').addEventListener('change', sendConfig);
+
+btnToggle.addEventListener('click', () => {
+  if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'action', action: isRunning ? 'stop' : 'start' }));
+});
+
+// BT
+document.getElementById('btnScan').addEventListener('click', () => {
+  document.getElementById('btScanList').innerHTML = "Buscando... (aguarde 8s)";
+  if (ws) ws.send(JSON.stringify({ type: 'bt_scan' }));
+});
+
+function btAction(action, mac, btnEl) {
+  if (btnEl) {
+    btnEl.textContent = "Aguarde...";
+    btnEl.disabled = true;
+    btnEl.style.opacity = "0.5";
+  }
+  if (ws) ws.send(JSON.stringify({ type: 'bt_action', action, mac }));
+}
+
+function renderBT(devices, containerId, isScan) {
+  const c = document.getElementById(containerId);
+  c.innerHTML = '';
+  if (!devices || devices.length === 0) { c.innerHTML = '<div class="list-sub">Nenhum fone encontrado.</div>'; return; }
+  
+  devices.forEach(d => {
+    let actions = '';
+    if (isScan) {
+      if (!d.paired) actions = `<button class="btn" onclick="btAction('pair','${d.mac}', this)">Parear</button>`;
+      else actions = `<div class="badge">Já Pareado</div>`;
+    } else {
+      if (d.connected) actions = `<button class="btn" onclick="btAction('disconnect','${d.mac}', this)">Desconectar</button>`;
+      else actions = `<button class="btn primary" onclick="btAction('connect','${d.mac}', this)">Conectar</button>`;
+      actions += `<button class="btn" style="margin-top:5px; border-color:var(--danger); color:var(--danger)" onclick="btAction('forget','${d.mac}', this)">Esquecer</button>`;
+    }
+    
+    c.innerHTML += `
+      <div class="list-item ${d.connected ? 'sel' : ''}">
+        <div class="list-icon">🎧</div>
+        <div class="list-info">
+          <div class="list-name">${d.name}</div>
+          <div class="list-sub">${d.mac}</div>
+          ${d.connected ? '<div class="badge">Conectado</div>' : ''}
+        </div>
+        <div style="flex-shrink:0; text-align:right;">${actions}</div>
+      </div>
+    `;
+  });
+}
+
+// AUDIO DEVICES
+function setAudioDevice(type, id) {
+  if (ws) ws.send(JSON.stringify({ type: 'set_audio_device', device_type: type, device_id: id }));
+}
+
+function renderAudioDevices(devices) {
+  const cin = document.getElementById('inList'); cin.innerHTML = '';
+  const cout = document.getElementById('outList'); cout.innerHTML = '';
+  
+  devices.forEach(d => {
+    const isSel = (d.type === 'input' && globalState.input_device === d.id) || 
+                  (d.type === 'output' && globalState.output_device === d.id);
+    
+    const html = `
+      <div class="list-item ${isSel ? 'sel' : ''}" onclick="setAudioDevice('${d.type}', '${d.id}')" style="cursor:pointer">
+        <div class="list-info">
+          <div class="list-name">${d.name}</div>
+          ${isSel ? '<div class="badge">Padrão do Sistema</div>' : ''}
+        </div>
+      </div>
+    `;
+    if (d.type === 'input') cin.innerHTML += html;
+    else cout.innerHTML += html;
+  });
+}
+
+window.addEventListener('load', connectWS);
+</script>
+</body>
+</html>
